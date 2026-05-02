@@ -175,9 +175,26 @@ const collectMessagesFromPage = (messagePack) => {
       const attachEl = group.querySelector(".c-search_message__attachments");
       const messageText = msgEl ? domToMarkdown(msgEl).trim() : "";
       const attachmentText = attachEl ? domToMarkdown(attachEl).trim() : "";
-      const trimmedMessage = attachmentText
-        ? `${messageText}\n${attachmentText}`.trim()
-        : messageText;
+
+      // File attachments: aria-label has filename, message_file_link has href.
+      // Image attachments use Markdown image syntax; other files use plain link.
+      const fileLines = [...group.querySelectorAll('.c-search_message__file_container')]
+        .map(container => {
+          const fileEl = container.querySelector('[data-qa="search_result_file"]');
+          const linkEl = container.querySelector('[data-qa="message_file_link"]');
+          const filename = fileEl?.getAttribute('aria-label') || 'file';
+          const url = linkEl?.getAttribute('href') || '';
+          if (!url) return '';
+          const isImage = container.querySelector('.p-file_thumbnail__container--image') !== null;
+          return isImage ? `![${filename}](${url})` : `[${filename}](${url})`;
+        })
+        .filter(Boolean)
+        .join('\n');
+
+      const trimmedMessage = [messageText, attachmentText, fileLines]
+        .filter(Boolean)
+        .join('\n')
+        .trim();
 
       const key = `${datetime}\t${channelName}\t${sender}\t${trimmedMessage}`;
       if (messagePack.messageSet.has(key)) return;
