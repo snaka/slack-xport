@@ -11,6 +11,26 @@ const statusEl = document.getElementById("status");
 const errorEl = document.getElementById("error");
 const stateEl = document.getElementById("state");
 const stateTextEl = document.getElementById("stateText");
+const progressEl = document.getElementById("progress");
+const progressBarEl = document.getElementById("progressBar");
+
+const showProgress = (count, total) => {
+  progressEl.style.display = "block";
+  if (total && total > 0) {
+    progressEl.classList.remove("indeterminate");
+    const pct = Math.min(100, (count / total) * 100);
+    progressBarEl.style.width = `${pct}%`;
+  } else {
+    progressEl.classList.add("indeterminate");
+    progressBarEl.style.width = "";
+  }
+};
+
+const hideProgress = () => {
+  progressEl.style.display = "none";
+  progressEl.classList.remove("indeterminate");
+  progressBarEl.style.width = "0%";
+};
 
 const setStatus = (text) => { statusEl.textContent = text; };
 const showError = (text) => { errorEl.textContent = text; errorEl.style.display = "block"; };
@@ -55,8 +75,11 @@ const detectPageState = async () => {
       mainBtn.disabled = true;
       return;
     }
-    const n = response.resultCount;
-    setState("ready", `Ready — ${n} message${n === 1 ? "" : "s"} on this page.`);
+    const total = response.totalCount;
+    const label = total
+      ? `Ready — ${total} result${total === 1 ? "" : "s"} to export.`
+      : "Ready to export.";
+    setState("ready", label);
     mainBtn.disabled = false;
   });
 };
@@ -68,6 +91,7 @@ mainBtn.addEventListener("click", async () => {
   clearError();
   mainBtn.disabled = true;
   setStatus("Starting export...");
+  showProgress(0, null); // indeterminate until we know the total
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
@@ -100,11 +124,14 @@ downloadBtn.addEventListener("click", () => {
 
 chrome.runtime.onMessage.addListener((message) => {
   if (message.action === "progress") {
-    setStatus(`Collecting... ${message.count} messages`);
+    const { count, total } = message;
+    showProgress(count, total);
+    setStatus(total ? `Collecting... ${count} / ${total}` : `Collecting... ${count} messages`);
   } else if (message.action === "exportComplete") {
     exportedData = message.data;
     mainBtn.disabled = false;
     downloadBtn.style.display = "block";
+    hideProgress();
 
     if (message.bytes >= LARGE_BYTES) {
       setStatus(`${message.count} messages (${formatSize(message.bytes)}) — large content.`);

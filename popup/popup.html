@@ -83,6 +83,29 @@
       min-height: 20px;
       font-size: 13px;
     }
+    #progress {
+      margin-top: 6px;
+      width: 100%;
+      height: 4px;
+      background: #e8e8e8;
+      border-radius: 2px;
+      overflow: hidden;
+      display: none;
+    }
+    #progressBar {
+      height: 100%;
+      background: #4a154b;
+      width: 0%;
+      transition: width 0.25s ease;
+    }
+    #progress.indeterminate #progressBar {
+      width: 30%;
+      animation: slide 1.4s ease-in-out infinite;
+    }
+    @keyframes slide {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(333%); }
+    }
     #error {
       margin-top: 10px;
       color: #e01e5a;
@@ -101,6 +124,7 @@
   <button id="confirmCopyBtn">Copy anyway</button>
   <button id="downloadBtn">Download as YAML file</button>
   <div id="status"></div>
+  <div id="progress"><div id="progressBar"></div></div>
   <div id="error"></div>
   <script src="popup.js"></script>
 </body>

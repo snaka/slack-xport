@@ -152,6 +152,17 @@ const waitForSearchResult = () => {
   });
 };
 
+// Read the "N results" indicator. Class name is hashed (resultCounts__xxx)
+// so we match by prefix. Returns null if not found or unparseable.
+const getTotalResultCount = () => {
+  const els = document.querySelectorAll('[class*="resultCounts"]');
+  for (const el of els) {
+    const m = el.textContent.match(/(\d+)\s*(?:results?|件|ヒット)/i);
+    if (m) return parseInt(m[1], 10);
+  }
+  return null;
+};
+
 const goToFirstPage = async () => {
   const wrapper = document.querySelector('.c-pagination_wrapper');
   if (!wrapper) return; // single-page result, nothing to do
@@ -270,7 +281,11 @@ const runExport = async (messagePack) => {
     await collectMessagesFromPage(messagePack);
   } while (messagePack.messagePushed);
 
-  chrome.runtime.sendMessage({ action: "progress", count: messagePack.messages.length });
+  chrome.runtime.sendMessage({
+    action: "progress",
+    count: messagePack.messages.length,
+    total: messagePack.total,
+  });
 
   await clickNextPage(messagePack);
   await waitMs(600);
@@ -282,11 +297,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === "startExport") {
     (async () => {
       await goToFirstPage();
+      await waitForSearchResult();
+      const total = getTotalResultCount();
       await runExport({
         messages: [],
         messageSet: new Set(),
         messagePushed: false,
         hasNextPage: true,
+        total,
       });
     })();
     sendResponse({ status: "started" });
@@ -294,8 +312,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   if (message.action === "checkSearchPage") {
     const hasResults = !!document.querySelector('.c-search_message__content');
-    const resultCount = document.querySelectorAll('[role="document"]').length;
-    sendResponse({ hasResults, resultCount });
+    const totalCount = getTotalResultCount();
+    sendResponse({ hasResults, totalCount });
     return false;
   }
   return true;
