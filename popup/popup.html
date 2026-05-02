@@ -33,11 +33,25 @@
       background: #ccc;
       cursor: not-allowed;
     }
-    #downloadBtn {
+    #copyBtn {
       background: #007a5a;
       color: white;
       display: none;
       margin-top: 8px;
+    }
+    #copyBtn.copied {
+      background: #005a42;
+    }
+    #downloadBtn {
+      background: none;
+      color: #616061;
+      font-weight: normal;
+      font-size: 12px;
+      display: none;
+      margin-top: 4px;
+      text-decoration: underline;
+      cursor: pointer;
+      padding: 4px 0;
     }
     #status {
       margin-top: 10px;
@@ -56,7 +70,8 @@
 <body>
   <h1>slack-xport</h1>
   <button id="exportBtn">Export Search Results</button>
-  <button id="downloadBtn">Download TSV</button>
+  <button id="copyBtn">Copy to Clipboard</button>
+  <button id="downloadBtn">Download as YAML file</button>
   <div id="status"></div>
   <div id="error"></div>
   <script src="popup.js"></script>

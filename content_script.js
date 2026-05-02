@@ -37,6 +37,23 @@ const waitForSearchResult = () => {
   });
 };
 
+const toYamlScalar = (str) => {
+  const trimmed = str.replace(/\n+$/, '');
+  if (!trimmed.includes('\n')) {
+    return '"' + trimmed.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+  }
+  return '|\n' + trimmed.split('\n').map(l => '    ' + l).join('\n');
+};
+
+const formatAsYaml = (messages) => {
+  return messages.map(({ date, channel, sender, message }) => [
+    `- date: ${toYamlScalar(date)}`,
+    `  channel: ${toYamlScalar(channel)}`,
+    `  sender: ${toYamlScalar(sender)}`,
+    `  message: ${toYamlScalar(message)}`,
+  ].join('\n')).join('\n\n');
+};
+
 const collectMessagesFromPage = (messagePack) => {
   return new Promise((resolve) => {
     messagePack.messagePushed = false;
@@ -52,11 +69,11 @@ const collectMessagesFromPage = (messagePack) => {
       const trimmedMessage = rawMessage
         .replace(new RegExp('^' + escapeRegExp(sender)), '')
         .replace(new RegExp('^.*?' + escapeRegExp(timestampLabel)), '');
-      const row = `${datetime}\t${channelName}\t${sender}\t${trimmedMessage}`;
-      if (messagePack.messageSet.has(row)) return;
-      messagePack.messages.push(row);
+      const key = `${datetime}\t${channelName}\t${sender}\t${trimmedMessage}`;
+      if (messagePack.messageSet.has(key)) return;
+      messagePack.messages.push({ date: datetime, channel: channelName, sender, message: trimmedMessage });
       messagePack.messagePushed = true;
-      messagePack.messageSet.add(row);
+      messagePack.messageSet.add(key);
       group.scrollIntoView();
     });
     resolve(messagePack);
@@ -89,7 +106,7 @@ const runExport = async (messagePack) => {
   if (!messagePack.hasNextPage) {
     chrome.runtime.sendMessage({
       action: "exportComplete",
-      data: messagePack.messages.join("\n"),
+      data: formatAsYaml(messagePack.messages),
       count: messagePack.messages.length,
     });
     return;
