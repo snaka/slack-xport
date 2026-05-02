@@ -45,8 +45,23 @@ const formatSize = (bytes) => bytes < 1024 * 1024
   ? `${(bytes / 1024).toFixed(1)} KB`
   : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
-const copyToClipboard = async () => {
-  await navigator.clipboard.writeText(exportedData);
+const writeClipboard = async () => {
+  // navigator.clipboard.writeText rejects with NotAllowedError when the
+  // document is not focused. During a long export the popup loses focus,
+  // so the auto-copy on completion would fail. Even with try/catch the
+  // rejection is recorded in the extension's error log before our handler
+  // can absorb it, so we pre-check focus and skip the call entirely.
+  if (!document.hasFocus()) return false;
+  try {
+    await navigator.clipboard.writeText(exportedData);
+    return true;
+  } catch (err) {
+    console.warn("Clipboard write failed:", err);
+    return false;
+  }
+};
+
+const flashCopied = () => {
   mainBtn.textContent = "Copied!";
   mainBtn.classList.add("copied");
   setTimeout(() => {
@@ -107,8 +122,12 @@ mainBtn.addEventListener("click", async () => {
 });
 
 confirmCopyBtn.addEventListener("click", async () => {
-  confirmCopyBtn.style.display = "none";
-  await copyToClipboard();
+  if (await writeClipboard()) {
+    confirmCopyBtn.style.display = "none";
+    flashCopied();
+  } else {
+    showError("Clipboard copy failed. Please try again.");
+  }
 });
 
 downloadBtn.addEventListener("click", () => {
@@ -133,13 +152,27 @@ chrome.runtime.onMessage.addListener((message) => {
     downloadBtn.style.display = "block";
     hideProgress();
 
+    const sizeStr = formatSize(message.bytes);
+
     if (message.bytes >= LARGE_BYTES) {
-      setStatus(`${message.count} messages (${formatSize(message.bytes)}) — large content.`);
+      setStatus(`${message.count} messages (${sizeStr}) — large content.`);
+      confirmCopyBtn.textContent = "Copy anyway";
       confirmCopyBtn.style.display = "block";
-    } else {
-      setStatus(`Done — ${message.count} messages (${formatSize(message.bytes)})`);
-      copyToClipboard();
+      return;
     }
+
+    // Try auto-copy. If popup focus was lost during the long export,
+    // the API will reject — fall back to a click-to-copy button.
+    writeClipboard().then(copied => {
+      if (copied) {
+        setStatus(`Done — ${message.count} messages (${sizeStr})`);
+        flashCopied();
+      } else {
+        setStatus(`Ready — ${message.count} messages (${sizeStr})`);
+        confirmCopyBtn.textContent = "Copy to Clipboard";
+        confirmCopyBtn.style.display = "block";
+      }
+    });
   }
 });
 
