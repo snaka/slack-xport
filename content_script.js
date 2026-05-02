@@ -131,6 +131,19 @@ const waitForSearchResult = () => {
   });
 };
 
+const goToFirstPage = async () => {
+  const wrapper = document.querySelector('.c-pagination_wrapper');
+  if (!wrapper) return; // single-page result, nothing to do
+  const currentPage = wrapper.getAttribute('data-qa-current-page');
+  if (!currentPage || currentPage === '1') return;
+
+  const page1Btn = document.querySelector('[data-qa="c-pagination_page_btn_1"]');
+  if (!page1Btn) return;
+  page1Btn.click();
+  await waitMs(800);
+  await waitForSearchResult();
+};
+
 const expandShowMore = async () => {
   const outerBtns = [...document.querySelectorAll('[data-qa="search_expand"]')]
     .filter(el => el.offsetParent !== null);
@@ -228,12 +241,15 @@ const runExport = async (messagePack) => {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === "startExport") {
-    runExport({
-      messages: [],
-      messageSet: new Set(),
-      messagePushed: false,
-      hasNextPage: true,
-    });
+    (async () => {
+      await goToFirstPage();
+      await runExport({
+        messages: [],
+        messageSet: new Set(),
+        messagePushed: false,
+        hasNextPage: true,
+      });
+    })();
     sendResponse({ status: "started" });
   }
   return true;
