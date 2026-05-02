@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "slack-xport",
+  "version": "0.1.0",
+  "description": "Export Slack search results as TSV",
+  "permissions": ["activeTab"],
+  "host_permissions": ["https://app.slack.com/*"],
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://app.slack.com/*"],
+      "js": ["content_script.js"]
+    }
+  ]
+}
