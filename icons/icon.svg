@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Slack purple rounded square background -->
+  <rect width="128" height="128" rx="28" fill="#4A154B"/>
+
+  <!-- # with right vertical bar replaced by a green down-arrow -->
+  <g transform="rotate(-8 64 60)">
+    <!-- Left vertical bar (white) -->
+    <rect x="42" y="18" width="16" height="84" rx="4" fill="#FFFFFF"/>
+    <!-- Top horizontal bar (white) -->
+    <rect x="18" y="42" width="92" height="16" rx="4" fill="#FFFFFF"/>
+    <!-- Bottom horizontal bar (white) -->
+    <rect x="18" y="66" width="92" height="16" rx="4" fill="#FFFFFF"/>
+    <!-- Right vertical bar with arrow tip (Slack green) -->
+    <path d="M 70 18 L 86 18 L 86 92 L 100 92 L 78 118 L 56 92 L 70 92 Z" fill="#2EB67D"/>
+  </g>
+</svg>

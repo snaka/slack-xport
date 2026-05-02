@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>slack-xport icon preview</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #1a1a1a;
+      color: #eee;
+      padding: 40px;
+    }
+    h1 { margin: 0 0 24px; font-size: 18px; }
+    .grid {
+      display: flex;
+      gap: 40px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    .item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .label { font-size: 11px; color: #888; }
+    .light-bg, .dark-bg, .toolbar-bg {
+      padding: 12px;
+      border-radius: 8px;
+      display: inline-flex;
+    }
+    .light-bg { background: #ffffff; }
+    .dark-bg { background: #1d1c1d; }
+    .toolbar-bg { background: #292929; }
+    .row { margin-bottom: 32px; }
+    .row-title { font-size: 13px; color: #aaa; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <h1>slack-xport icon preview</h1>
+
+  <div class="row">
+    <div class="row-title">Sizes (on dark background, like Chrome dark theme)</div>
+    <div class="grid">
+      <div class="item">
+        <div class="dark-bg"><img src="icon.svg" width="16" height="16"></div>
+        <div class="label">16 px (toolbar)</div>
+      </div>
+      <div class="item">
+        <div class="dark-bg"><img src="icon.svg" width="32" height="32"></div>
+        <div class="label">32 px</div>
+      </div>
+      <div class="item">
+        <div class="dark-bg"><img src="icon.svg" width="48" height="48"></div>
+        <div class="label">48 px (manage)</div>
+      </div>
+      <div class="item">
+        <div class="dark-bg"><img src="icon.svg" width="128" height="128"></div>
+        <div class="label">128 px (store)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="row-title">On light background</div>
+    <div class="grid">
+      <div class="item">
+        <div class="light-bg"><img src="icon.svg" width="16" height="16"></div>
+        <div class="label">16 px</div>
+      </div>
+      <div class="item">
+        <div class="light-bg"><img src="icon.svg" width="32" height="32"></div>
+        <div class="label">32 px</div>
+      </div>
+      <div class="item">
+        <div class="light-bg"><img src="icon.svg" width="48" height="48"></div>
+        <div class="label">48 px</div>
+      </div>
+      <div class="item">
+        <div class="light-bg"><img src="icon.svg" width="128" height="128"></div>
+        <div class="label">128 px</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
