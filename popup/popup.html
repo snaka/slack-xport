@@ -16,6 +16,30 @@
       margin: 0 0 12px;
       color: #4a154b;
     }
+    .state {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 4px;
+      background: #f4f4f4;
+      margin-bottom: 10px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .state .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .state.ready { background: #e6f4ea; color: #007a5a; }
+    .state.ready .dot { background: #007a5a; }
+    .state.warn { background: #fff8e1; color: #8a6d3b; }
+    .state.warn .dot { background: #d4a017; }
+    .state.error { background: #fbe9eb; color: #b03a4a; }
+    .state.error .dot { background: #e01e5a; }
+
     button {
       width: 100%;
       padding: 8px 12px;
@@ -69,7 +93,11 @@
 </head>
 <body>
   <h1>slack-xport</h1>
-  <button id="mainBtn">Export &amp; Copy</button>
+  <div id="state" class="state">
+    <span class="dot"></span>
+    <span id="stateText">Checking page…</span>
+  </div>
+  <button id="mainBtn" disabled>Export &amp; Copy</button>
   <button id="confirmCopyBtn">Copy anyway</button>
   <button id="downloadBtn">Download as YAML file</button>
   <div id="status"></div>

@@ -268,6 +268,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       });
     })();
     sendResponse({ status: "started" });
+    return true;
+  }
+  if (message.action === "checkSearchPage") {
+    const hasResults = !!document.querySelector('.c-search_message__content');
+    const resultCount = document.querySelectorAll('[role="document"]').length;
+    sendResponse({ hasResults, resultCount });
+    return false;
   }
   return true;
 });
