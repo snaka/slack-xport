@@ -54,6 +54,24 @@ const formatAsYaml = (messages) => {
   ].join('\n')).join('\n\n');
 };
 
+const expandShowMore = async () => {
+  // Expand outer message truncation first
+  const outerBtns = [...document.querySelectorAll('[data-qa="search_expand"]')]
+    .filter(el => el.offsetParent !== null);
+  if (outerBtns.length > 0) {
+    outerBtns.forEach(btn => btn.click());
+    await waitMs(500);
+  }
+
+  // Then expand truncation inside quoted/rich-text blocks (revealed after outer expansion)
+  const innerBtns = [...document.querySelectorAll('.c-rich_text_expand_button')]
+    .filter(el => el.offsetParent !== null);
+  if (innerBtns.length > 0) {
+    innerBtns.forEach(btn => btn.click());
+    await waitMs(500);
+  }
+};
+
 const collectMessagesFromPage = (messagePack) => {
   return new Promise((resolve) => {
     messagePack.messagePushed = false;
@@ -115,6 +133,7 @@ const runExport = async (messagePack) => {
   await waitForSearchResult();
   do {
     await waitMs(800);
+    await expandShowMore();
     await collectMessagesFromPage(messagePack);
   } while (messagePack.messagePushed);
 
