@@ -93,12 +93,33 @@ const domToMarkdown = (node) => {
   return inner();
 };
 
+// Quote a single-line string only when YAML semantics require it.
+// Leaving plain text unquoted reduces token count for LLM context.
+const yamlReserved = /^(?:true|false|null|~|yes|no|on|off|y|n)$/i;
+const yamlNumberLike = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$|^[+-]?0x[0-9a-f]+$/i;
+const yamlSpecialStart = /^[!&*\[\]{}|<>=,?:#~"'%@`\-]/;
+
+const yamlNeedsQuoting = (s) => {
+  if (s === '') return true;
+  if (s !== s.trim()) return true;                 // leading/trailing space
+  if (yamlSpecialStart.test(s)) return true;       // forbidden first char
+  if (yamlReserved.test(s)) return true;           // would parse as bool/null
+  if (yamlNumberLike.test(s)) return true;         // would parse as number
+  if (/:(?:\s|$)/.test(s)) return true;            // ": " inside ends a key
+  if (/\s#/.test(s)) return true;                  // " #" starts a comment
+  if (/[\t\x00-\x1F]/.test(s)) return true;        // control char (incl. tab)
+  return false;
+};
+
 const toYamlScalar = (str) => {
   const trimmed = str.replace(/\n+$/, '');
-  if (!trimmed.includes('\n')) {
+  if (trimmed.includes('\n')) {
+    return '|\n' + trimmed.split('\n').map(l => '    ' + l).join('\n');
+  }
+  if (yamlNeedsQuoting(trimmed)) {
     return '"' + trimmed.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
   }
-  return '|\n' + trimmed.split('\n').map(l => '    ' + l).join('\n');
+  return trimmed;
 };
 
 const formatAsYaml = (messages) => {
@@ -177,13 +198,14 @@ const collectMessagesFromPage = (messagePack) => {
       const attachmentText = attachEl ? domToMarkdown(attachEl).trim() : "";
 
       // File attachments: aria-label has filename, message_file_link has href.
-      // Image attachments use Markdown image syntax; other files use plain link.
+      // Strip Slack's tracking query params (origin_team/origin_channel) — the
+      // base URL still resolves and we save tokens.
       const fileLines = [...group.querySelectorAll('.c-search_message__file_container')]
         .map(container => {
           const fileEl = container.querySelector('[data-qa="search_result_file"]');
           const linkEl = container.querySelector('[data-qa="message_file_link"]');
           const filename = fileEl?.getAttribute('aria-label') || 'file';
-          const url = linkEl?.getAttribute('href') || '';
+          const url = (linkEl?.getAttribute('href') || '').split('?')[0];
           if (!url) return '';
           const isImage = container.querySelector('.p-file_thumbnail__container--image') !== null;
           return isImage ? `![${filename}](${url})` : `[${filename}](${url})`;
