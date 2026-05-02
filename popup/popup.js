@@ -1,9 +1,11 @@
 "use strict";
 
+const LARGE_BYTES = 1024 * 1024; // warn if result exceeds 1MB
+
 let exportedData = null;
 
-const exportBtn = document.getElementById("exportBtn");
-const copyBtn = document.getElementById("copyBtn");
+const mainBtn = document.getElementById("mainBtn");
+const confirmCopyBtn = document.getElementById("confirmCopyBtn");
 const downloadBtn = document.getElementById("downloadBtn");
 const statusEl = document.getElementById("status");
 const errorEl = document.getElementById("error");
@@ -12,19 +14,33 @@ const setStatus = (text) => { statusEl.textContent = text; };
 const showError = (text) => { errorEl.textContent = text; errorEl.style.display = "block"; };
 const clearError = () => { errorEl.style.display = "none"; };
 
-exportBtn.addEventListener("click", async () => {
+const formatSize = (bytes) => bytes < 1024 * 1024
+  ? `${(bytes / 1024).toFixed(1)} KB`
+  : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
+const copyToClipboard = async () => {
+  await navigator.clipboard.writeText(exportedData);
+  mainBtn.textContent = "Copied!";
+  mainBtn.classList.add("copied");
+  setTimeout(() => {
+    mainBtn.textContent = "Export & Copy";
+    mainBtn.classList.remove("copied");
+  }, 2000);
+};
+
+mainBtn.addEventListener("click", async () => {
   exportedData = null;
-  copyBtn.style.display = "none";
+  confirmCopyBtn.style.display = "none";
   downloadBtn.style.display = "none";
   clearError();
-  exportBtn.disabled = true;
+  mainBtn.disabled = true;
   setStatus("Starting export...");
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
   if (!tab.url?.includes("app.slack.com")) {
     showError("Please open Slack and run a search first.");
-    exportBtn.disabled = false;
+    mainBtn.disabled = false;
     setStatus("");
     return;
   }
@@ -32,7 +48,7 @@ exportBtn.addEventListener("click", async () => {
   chrome.tabs.sendMessage(tab.id, { action: "startExport" }, (response) => {
     if (chrome.runtime.lastError) {
       showError("Could not connect. Try reloading the Slack tab.");
-      exportBtn.disabled = false;
+      mainBtn.disabled = false;
       setStatus("");
       return;
     }
@@ -40,15 +56,9 @@ exportBtn.addEventListener("click", async () => {
   });
 });
 
-copyBtn.addEventListener("click", async () => {
-  if (!exportedData) return;
-  await navigator.clipboard.writeText(exportedData);
-  copyBtn.textContent = "Copied!";
-  copyBtn.classList.add("copied");
-  setTimeout(() => {
-    copyBtn.textContent = "Copy to Clipboard";
-    copyBtn.classList.remove("copied");
-  }, 2000);
+confirmCopyBtn.addEventListener("click", async () => {
+  confirmCopyBtn.style.display = "none";
+  await copyToClipboard();
 });
 
 downloadBtn.addEventListener("click", () => {
@@ -67,9 +77,15 @@ chrome.runtime.onMessage.addListener((message) => {
     setStatus(`Collecting... ${message.count} messages`);
   } else if (message.action === "exportComplete") {
     exportedData = message.data;
-    exportBtn.disabled = false;
-    setStatus(`Done — ${message.count} messages collected.`);
-    copyBtn.style.display = "block";
+    mainBtn.disabled = false;
     downloadBtn.style.display = "block";
+
+    if (message.bytes >= LARGE_BYTES) {
+      setStatus(`${message.count} messages (${formatSize(message.bytes)}) — large content.`);
+      confirmCopyBtn.style.display = "block";
+    } else {
+      setStatus(`Done — ${message.count} messages (${formatSize(message.bytes)})`);
+      copyToClipboard();
+    }
   }
 });

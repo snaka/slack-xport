@@ -12,9 +12,103 @@ const timestampToTime = (timestamp) => {
   return `${yyyy}-${mm}-${dd} ${weekday[d.getDay()]} ${hh}:${mi}:${ss}`;
 };
 
-const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 const waitMs = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Convert Slack's rich text DOM to Markdown.
+// Confirmed selectors via Chrome DevTools inspection:
+//   inline code  : <code class="c-mrkdwn__code">
+//   code block   : <pre class="c-mrkdwn__pre">
+//   bullet list  : <ul class="...p-rich_text_list__bullet..."> + <li data-stringify-indent="N">
+//   bold         : <b data-stringify-type="bold">
+//   link         : <a data-stringify-link="url">
+//   italic/strike: inferred from same data-stringify-type pattern
+const domToMarkdown = (node) => {
+  if (node.nodeType === 3) return node.textContent; // text node
+  if (node.nodeType !== 1) return '';               // non-element
+
+  const tag = node.tagName.toLowerCase();
+  const cls = node.className || '';
+
+  // Inline: br — Slack uses <br aria-hidden="true">, so check before the
+  // aria-hidden filter below or line breaks would be silently dropped.
+  if (tag === 'br') return '\n';
+
+  // Skip buttons (expand triggers) and hidden elements
+  if (tag === 'button') return '';
+  if (node.getAttribute('hidden') !== null) return '';
+  if (node.getAttribute('aria-hidden') === 'true') return '';
+
+  const inner = () => [...node.childNodes].map(domToMarkdown).join('');
+
+  // Inline: image → Markdown image syntax
+  if (tag === 'img') {
+    const src = node.getAttribute('src') || '';
+    const alt = node.getAttribute('alt') || '';
+    return src ? `![${alt}](${src})` : '';
+  }
+
+  // Inline: link (data-stringify-link holds the canonical URL)
+  if (tag === 'a') {
+    const href = node.getAttribute('data-stringify-link') || node.getAttribute('href') || '';
+    const text = inner();
+    return (href && href !== text) ? `[${text}](${href})` : text;
+  }
+
+  // Inline: bold  — <b data-stringify-type="bold">
+  if (tag === 'b' || node.getAttribute('data-stringify-type') === 'bold') return `**${inner()}**`;
+
+  // Inline: italic — inferred: <i data-stringify-type="italic">
+  if (tag === 'i' || node.getAttribute('data-stringify-type') === 'italic') return `_${inner()}_`;
+
+  // Inline: strikethrough — inferred: <s data-stringify-type="strike">
+  if (tag === 's' || node.getAttribute('data-stringify-type') === 'strike') return `~~${inner()}~~`;
+
+  // Inline: code — <code class="c-mrkdwn__code">
+  if (tag === 'code' || cls.includes('c-mrkdwn__code')) return `\`${inner()}\``;
+
+  // Block: code block — <pre class="c-mrkdwn__pre">
+  //   inner div "p-rich_text_block--no-overflow" is a pass-through wrapper
+  if (tag === 'pre' || cls.includes('c-mrkdwn__pre')) return `\`\`\`\n${inner()}\n\`\`\`\n`;
+
+  // Block: blockquote
+  if (tag === 'blockquote' || cls.includes('p-rich_text_quote')) {
+    return inner().trimEnd().split('\n').map(l => `> ${l}`).join('\n') + '\n';
+  }
+
+  // Block: list item — <li data-stringify-indent="N">
+  //   indent level comes from data-stringify-indent attribute
+  if (tag === 'li') {
+    const indent = parseInt(node.getAttribute('data-stringify-indent') || '0') * 2;
+    const parentUl = node.parentElement;
+    const isOrdered = parentUl?.className?.includes('p-rich_text_list__ordered') || tag === 'ol';
+    return ' '.repeat(indent) + (isOrdered ? '1. ' : '- ') + inner().trim() + '\n';
+  }
+
+  // Block: paragraph / section — each section ends with a newline
+  if (cls.includes('p-rich_text_section') || tag === 'p') {
+    const text = inner();
+    return text ? text.trimEnd() + '\n' : '';
+  }
+
+  return inner();
+};
+
+const toYamlScalar = (str) => {
+  const trimmed = str.replace(/\n+$/, '');
+  if (!trimmed.includes('\n')) {
+    return '"' + trimmed.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+  }
+  return '|\n' + trimmed.split('\n').map(l => '    ' + l).join('\n');
+};
+
+const formatAsYaml = (messages) => {
+  return messages.map(({ date, channel, sender, message }) => [
+    `- date: ${toYamlScalar(date)}`,
+    `  channel: ${toYamlScalar(channel)}`,
+    `  sender: ${toYamlScalar(sender)}`,
+    `  message: ${toYamlScalar(message)}`,
+  ].join('\n')).join('\n\n');
+};
 
 const waitForSearchResult = () => {
   const observeFunc = () => {
@@ -37,25 +131,7 @@ const waitForSearchResult = () => {
   });
 };
 
-const toYamlScalar = (str) => {
-  const trimmed = str.replace(/\n+$/, '');
-  if (!trimmed.includes('\n')) {
-    return '"' + trimmed.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
-  }
-  return '|\n' + trimmed.split('\n').map(l => '    ' + l).join('\n');
-};
-
-const formatAsYaml = (messages) => {
-  return messages.map(({ date, channel, sender, message }) => [
-    `- date: ${toYamlScalar(date)}`,
-    `  channel: ${toYamlScalar(channel)}`,
-    `  sender: ${toYamlScalar(sender)}`,
-    `  message: ${toYamlScalar(message)}`,
-  ].join('\n')).join('\n\n');
-};
-
 const expandShowMore = async () => {
-  // Expand outer message truncation first
   const outerBtns = [...document.querySelectorAll('[data-qa="search_expand"]')]
     .filter(el => el.offsetParent !== null);
   if (outerBtns.length > 0) {
@@ -63,7 +139,6 @@ const expandShowMore = async () => {
     await waitMs(500);
   }
 
-  // Then expand truncation inside quoted/rich-text blocks (revealed after outer expansion)
   const innerBtns = [...document.querySelectorAll('.c-rich_text_expand_button')]
     .filter(el => el.offsetParent !== null);
   if (innerBtns.length > 0) {
@@ -82,11 +157,15 @@ const collectMessagesFromPage = (messagePack) => {
       const channelNameEl = group.querySelector('[data-qa="inline_channel_entity__name"]');
       const channelName = channelNameEl ? channelNameEl.textContent : "DirectMessage";
       const sender = group.querySelector(".c-message__sender_button")?.textContent ?? "";
-      const timestampLabel = group.querySelector(".c-timestamp__label")?.textContent ?? "";
-      const rawMessage = group.querySelector(".c-search_message__content")?.textContent ?? "";
-      const trimmedMessage = rawMessage
-        .replace(new RegExp('^' + escapeRegExp(sender)), '')
-        .replace(new RegExp('^.*?' + escapeRegExp(timestampLabel)), '');
+
+      const msgEl = group.querySelector('[data-qa="message-text"]');
+      const attachEl = group.querySelector(".c-search_message__attachments");
+      const messageText = msgEl ? domToMarkdown(msgEl).trim() : "";
+      const attachmentText = attachEl ? domToMarkdown(attachEl).trim() : "";
+      const trimmedMessage = attachmentText
+        ? `${messageText}\n${attachmentText}`.trim()
+        : messageText;
+
       const key = `${datetime}\t${channelName}\t${sender}\t${trimmedMessage}`;
       if (messagePack.messageSet.has(key)) return;
       messagePack.messages.push({ date: datetime, channel: channelName, sender, message: trimmedMessage });
@@ -122,10 +201,12 @@ const checkPageLimit = (messagePack) => {
 
 const runExport = async (messagePack) => {
   if (!messagePack.hasNextPage) {
+    const yaml = formatAsYaml(messagePack.messages);
     chrome.runtime.sendMessage({
       action: "exportComplete",
-      data: formatAsYaml(messagePack.messages),
+      data: yaml,
       count: messagePack.messages.length,
+      bytes: new Blob([yaml]).size,
     });
     return;
   }

@@ -25,22 +25,22 @@
       font-size: 14px;
       font-weight: 600;
     }
-    #exportBtn {
+    #mainBtn {
       background: #4a154b;
       color: white;
     }
-    #exportBtn:disabled {
+    #mainBtn:disabled {
       background: #ccc;
       cursor: not-allowed;
     }
-    #copyBtn {
+    #mainBtn.copied {
+      background: #007a5a;
+    }
+    #confirmCopyBtn {
       background: #007a5a;
       color: white;
       display: none;
       margin-top: 8px;
-    }
-    #copyBtn.copied {
-      background: #005a42;
     }
     #downloadBtn {
       background: none;
@@ -69,8 +69,8 @@
 </head>
 <body>
   <h1>slack-xport</h1>
-  <button id="exportBtn">Export Search Results</button>
-  <button id="copyBtn">Copy to Clipboard</button>
+  <button id="mainBtn">Export &amp; Copy</button>
+  <button id="confirmCopyBtn">Copy anyway</button>
   <button id="downloadBtn">Download as YAML file</button>
   <div id="status"></div>
   <div id="error"></div>
