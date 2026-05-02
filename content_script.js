@@ -163,17 +163,67 @@ const getTotalResultCount = () => {
   return null;
 };
 
-const goToFirstPage = async () => {
-  const wrapper = document.querySelector('.c-pagination_wrapper');
-  if (!wrapper) return; // single-page result, nothing to do
-  const currentPage = wrapper.getAttribute('data-qa-current-page');
-  if (!currentPage || currentPage === '1') return;
+// Wait for pagination state and content to actually swap after a click.
+// We watch the page indicator change AND the first visible message's
+// timestamp change AND every message group having a timestamp.
+const waitForPageSwap = (oldPage, oldFirstTs) => {
+  return new Promise((resolve) => {
+    const ready = () => {
+      const w = document.querySelector('.c-pagination_wrapper');
+      const cur = w?.getAttribute('data-qa-current-page');
+      if (!cur || cur === oldPage) return false;
+      const groups = document.querySelectorAll('.c-message_group');
+      if (groups.length === 0) return false;
+      const newTs = groups[0].querySelector('.c-timestamp')?.getAttribute('data-ts');
+      if (newTs && newTs === oldFirstTs) return false;
+      return [...groups].every(g => {
+        const ts = g.querySelector('.c-timestamp');
+        return ts && ts.getAttribute('data-ts');
+      });
+    };
+    if (ready()) { resolve(); return; }
+    const observer = new MutationObserver(() => {
+      if (ready()) { observer.disconnect(); resolve(); }
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
+    setTimeout(() => { observer.disconnect(); resolve(); }, 5000);
+  });
+};
 
-  const page1Btn = document.querySelector('[data-qa="c-pagination_page_btn_1"]');
-  if (!page1Btn) return;
-  page1Btn.click();
-  await waitMs(800);
-  await waitForSearchResult();
+// Walk the pagination back to page 1. With many pages, Slack hides the
+// page-1 button (only a window around the current page is shown), so we
+// hop via the smallest-numbered visible page button each step. When no
+// numbered button below the current page is visible (e.g. on the very
+// first page of the visible window), fall back to the "Previous page"
+// arrow. Bounded loop so we never spin forever.
+const goToFirstPage = async () => {
+  for (let i = 0; i < 50; i++) {
+    const wrapper = document.querySelector('.c-pagination_wrapper');
+    if (!wrapper) return; // single-page result, nothing to do
+    const current = wrapper.getAttribute('data-qa-current-page');
+    if (!current || current === '1') return;
+
+    const currentNum = parseInt(current, 10);
+    const visiblePagesBelow = [...wrapper.querySelectorAll('[data-qa^="c-pagination_page_btn_"]')]
+      .map(b => ({
+        btn: b,
+        n: parseInt(b.getAttribute('data-qa').replace('c-pagination_page_btn_', ''), 10),
+      }))
+      .filter(x => Number.isFinite(x.n) && x.n < currentNum)
+      .sort((a, b) => a.n - b.n);
+
+    let target;
+    if (visiblePagesBelow.length > 0) {
+      target = visiblePagesBelow[0].btn; // jump to smallest visible
+    } else {
+      target = wrapper.querySelector('[data-qa="c-pagination_back_btn"]');
+      if (!target || target.getAttribute('aria-disabled') === 'true') return;
+    }
+
+    const oldFirstTs = document.querySelector('.c-message_group .c-timestamp')?.getAttribute('data-ts');
+    target.click();
+    await waitForPageSwap(current, oldFirstTs);
+  }
 };
 
 const expandShowMore = async () => {
