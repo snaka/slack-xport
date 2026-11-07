@@ -30,7 +30,7 @@ Selectors below were verified against the live page via Chrome DevTools — not 
 - Embedded/quoted content: `.c-search_message__attachments`
 - Truncation buttons: outer = `[data-qa="search_expand"]`, inner (inside quoted blocks) = `.c-rich_text_expand_button`. Click outer first, wait, then inner.
 - File attachments: `.c-search_message__file_container`. Filename in `[data-qa="search_result_file"]`'s `aria-label`; URL in `[data-qa="message_file_link"]`'s `href`. Image vs other-file detected via `.p-file_thumbnail__container--image`. Strip `?origin_team=...` query params from the URL before emitting.
-- Pagination wrapper: `.c-pagination_wrapper` carries `data-qa-current-page`. Page buttons: `[data-qa="c-pagination_page_btn_<N>"]`. Back/forward arrows: `[data-qa="c-pagination_back_btn"]` / `c-pagination_forward_btn`.
+- Pagination wrapper: select by the `[data-qa-current-page]` attribute itself (its class was renamed to a hash in late 2026; `.c-pagination_wrapper` no longer exists). Do not use `.c-message_group` either — it is gone; message groups are `[role="document"]`. Page buttons: `[data-qa="c-pagination_page_btn_<N>"]`. Back/forward arrows: `[data-qa="c-pagination_back_btn"]` / `c-pagination_forward_btn`.
 - Total result count: `[class*="resultCounts"]` (class hash varies, prefix is stable). Body matches `(\d+)\s*(?:results?|件|ヒット)/i`.
 - Inline rich text formatting (DOM → Markdown):
   - Bold: `<b data-stringify-type="bold">` (no class)
