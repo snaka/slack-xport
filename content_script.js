@@ -133,7 +133,7 @@ const formatAsYaml = (messages) => {
 
 const waitForSearchResult = () => {
   const observeFunc = () => {
-    const groups = document.querySelectorAll(".c-message_group");
+    const groups = document.querySelectorAll('[role="document"]');
     const allHaveTimestamp = [...groups].every(g => {
       const ts = g.querySelector(".c-timestamp");
       return ts && ts.getAttribute("data-ts");
@@ -169,10 +169,10 @@ const getTotalResultCount = () => {
 const waitForPageSwap = (oldPage, oldFirstTs) => {
   return new Promise((resolve) => {
     const ready = () => {
-      const w = document.querySelector('.c-pagination_wrapper');
+      const w = document.querySelector('[data-qa-current-page]');
       const cur = w?.getAttribute('data-qa-current-page');
       if (!cur || cur === oldPage) return false;
-      const groups = document.querySelectorAll('.c-message_group');
+      const groups = document.querySelectorAll('[role="document"]');
       if (groups.length === 0) return false;
       const newTs = groups[0].querySelector('.c-timestamp')?.getAttribute('data-ts');
       if (newTs && newTs === oldFirstTs) return false;
@@ -198,7 +198,7 @@ const waitForPageSwap = (oldPage, oldFirstTs) => {
 // arrow. Bounded loop so we never spin forever.
 const goToFirstPage = async () => {
   for (let i = 0; i < 50; i++) {
-    const wrapper = document.querySelector('.c-pagination_wrapper');
+    const wrapper = document.querySelector('[data-qa-current-page]');
     if (!wrapper) return; // single-page result, nothing to do
     const current = wrapper.getAttribute('data-qa-current-page');
     if (!current || current === '1') return;
@@ -220,7 +220,7 @@ const goToFirstPage = async () => {
       if (!target || target.getAttribute('aria-disabled') === 'true') return;
     }
 
-    const oldFirstTs = document.querySelector('.c-message_group .c-timestamp')?.getAttribute('data-ts');
+    const oldFirstTs = document.querySelector('[role="document"] .c-timestamp')?.getAttribute('data-ts');
     target.click();
     await waitForPageSwap(current, oldFirstTs);
   }
@@ -291,16 +291,8 @@ const collectMessagesFromPage = (messagePack) => {
 };
 
 const clickNextPage = (messagePack) => {
-  messagePack.hasNextPage = false;
-  const arrowBtns = document.querySelectorAll(".c-pagination__arrow_btn");
-  if (!arrowBtns.length) return Promise.resolve(messagePack);
-
-  const nextBtn = [...arrowBtns].find(e =>
-    ["Next page", "次のページ"].includes(e.getAttribute("aria-label"))
-  );
-  if (!nextBtn) return Promise.resolve(messagePack);
-
-  messagePack.hasNextPage = nextBtn.getAttribute("aria-disabled") === "false";
+  const nextBtn = document.querySelector('[data-qa="c-pagination_forward_btn"]');
+  messagePack.hasNextPage = !!nextBtn && nextBtn.getAttribute("aria-disabled") === "false";
   if (messagePack.hasNextPage) nextBtn.click();
   return Promise.resolve(messagePack);
 };
