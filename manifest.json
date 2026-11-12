@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "slack-xport",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Copy Slack search results as Markdown-formatted YAML, ready to paste into LLM prompts.",
   "permissions": ["activeTab"],
   "host_permissions": ["https://app.slack.com/*"],
